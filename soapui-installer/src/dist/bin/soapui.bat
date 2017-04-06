@@ -1,5 +1,7 @@
 @echo off
 
+chcp 65001
+
 set SOAPUI_HOME=%~dp0
 
 set JAVA=%JAVA_HOME%\bin\java
@@ -39,5 +41,5 @@ rem    set JAVA_OPTS=%JAVA_OPTS% -Dsoapui.browser.disabled="true"
 
 rem ********* run soapui ***********
 
-"%JAVA%" %JAVA_OPTS% -cp "%CLASSPATH%" com.eviware.soapui.SoapUI %*
+"%JAVA%" %JAVA_OPTS% -cp "%CLASSPATH%" -Dfile.encoding=utf-8 com.eviware.soapui.SoapUI %*
 cd /d %OLDDIR%

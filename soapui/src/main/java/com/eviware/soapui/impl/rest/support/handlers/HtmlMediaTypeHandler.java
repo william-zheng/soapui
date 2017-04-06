@@ -24,18 +24,28 @@ import com.eviware.soapui.support.StringUtils;
 import com.eviware.soapui.support.xml.XmlUtils;
 import org.w3c.dom.Document;
 import org.w3c.tidy.Tidy;
+import org.apache.log4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
 public class HtmlMediaTypeHandler implements MediaTypeHandler {
+    private static final Logger log = Logger.getLogger(HtmlMediaTypeHandler.class);
+
+    private String charset = null;
+
     public boolean canHandle(String contentType) {
         return contentType != null && contentType.toLowerCase().contains("text/html");
     }
 
     @Override
     public String createXmlRepresentation(HttpResponse response) {
+        String contentType = response.getResponseHeaders().get("Content-Type", (String)null);
+        
+        if (contentType != null && contentType.indexOf("charset=") >= 0) {
+            charset = contentType.substring(contentType.indexOf("charset=") + 8);
+        }
         return createXmlRepresentation((TypedContent)response);
     }
 
@@ -48,7 +58,12 @@ public class HtmlMediaTypeHandler implements MediaTypeHandler {
         try {
             // XmlObject.Factory.parse( new ByteArrayInputStream(
             // content.getBytes() ) );
-            XmlUtils.createXmlObject(new ByteArrayInputStream(content.getBytes()));
+            if (charset != null) {
+                XmlUtils.createXmlObject(new ByteArrayInputStream(content.getBytes(charset)));
+            } else {
+                XmlUtils.createXmlObject(new ByteArrayInputStream(content.getBytes()));
+            }
+            charset = null;
             return content;
         } catch (Exception e) {
             // fall through, this wasn't xml
@@ -64,13 +79,22 @@ public class HtmlMediaTypeHandler implements MediaTypeHandler {
             tidy.setQuoteNbsp(true);
             tidy.setFixUri(false);
 
-            Document document = tidy.parseDOM(new ByteArrayInputStream(content.getBytes()), null);
+            Document document;
+            if (charset != null) {
+                tidy.setInputEncoding(charset);
+                document = tidy.parseDOM(new ByteArrayInputStream(content.getBytes(charset)), null);
+            } else {
+                document = tidy.parseDOM(new ByteArrayInputStream(content.getBytes()), null);
+            }
             StringWriter writer = new StringWriter();
             XmlUtils.serializePretty(document, writer);
+
+            charset = null;
             return writer.toString();
         } catch (Throwable e) {
             SoapUI.logError(e);
         }
+        charset = null;
         return null;
     }
 }
